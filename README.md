@@ -4,7 +4,7 @@ This repository primarily utilizes Hebbian learning to achieve unsupervised cont
 
 ## Introduction
 
-SMGrNN is a neural network model based on Hebbian learning rules, aimed at achieving unsupervised continual learning for agents. Hebbian learning is a learning mechanism based on synaptic plasticity between neurons, which adjusts the weights of neuron connections to achieve learning and memory.
+Self-Motivated Growing Neural Network (SMGrNN) is a neural network model based on Hebbian learning rules, aimed at achieving unsupervised continual learning for agents. Hebbian learning is a learning mechanism based on synaptic plasticity between neurons, which adjusts the weights of neuron connections to achieve learning and memory.
 
 ## Features
 
@@ -17,7 +17,7 @@ SMGrNN is a neural network model based on Hebbian learning rules, aimed at achie
 Please follow the steps below to install and configure the project:
 
 ```bash
-git clone https://github.com/yourusername/SMGrNN.git
+git clone https://github.com/EthanJia0627/SMGrNN.git
 cd SMGrNN
 pip install -r requirements.txt
 ```
