@@ -37,17 +37,19 @@ class Maze:
         """
         valid = False
         while not valid:
-            # -1 represent wall, 0 represent empty space, 1 represent start, 2 represent goal, 3 represent swich
             self.maze = np.zeros((self.height, self.width), dtype=int)
-            self.maze[self.start] = 1
-            self.maze[self.goal] = 2
-            if self.type == "swich":
-                self.maze[self.swich] = 3  
             # generate walls
             for i in range(1, self.height - 1):
                 for j in range(1, self.width - 1):
                     if np.random.random() < 0.3:
-                        self.maze[i, j] = -1
+                        self.maze[i, j] = -1                    # wall is -1
+
+            # generate start, goal and swich
+            self.maze[self.start] = 1                           # start is 1
+            self.maze[self.goal] = 2                            # goal is 2
+            if self.type == "swich":
+                self.maze[self.swich] = 3                       # swich is 3
+                self.maze[self.goal] = 0                        # Hide the goal
             # make sure path is available
             if self.type == "simple":
                 path = self.find_path(self.start, self.goal)
@@ -109,7 +111,38 @@ class Maze:
                         parent[neighbor] = current
         return None
        
-
+    def move(self, direction):
+        """
+        Move the player to the given direction and return reward
+        :param direction: str
+        """
+        # calculate new position
+        if direction == "up":
+            new_position = self.player[0] - 1, self.player[1]
+        elif direction == "down":
+            new_position = self.player[0] + 1, self.player[1]
+        elif direction == "left":
+            new_position = self.player[0], self.player[1] - 1
+        elif direction == "right":
+            new_position = self.player[0], self.player[1] + 1
+        # check if new position is valid
+        if new_position[0] < 0 or new_position[0] >= self.height or new_position[1] < 0 or new_position[1] >= self.width:
+            return -1
+        if self.maze[new_position] == -1:
+            return -1
+        if self.type == "simple":
+            self.player = new_position
+        elif self.type == "swich":
+            if new_position == self.swich:
+                self.player = new_position
+                self.maze[self.goal] = 2
+                return -0.1
+            if new_position == self.goal:
+                self.player = new_position
+                return 2
+            else:
+                self.player = new_position
+                return -0.1            
     def regenerate(self):
         """
         Regenerate the maze
@@ -125,27 +158,83 @@ class Maze:
         self.player = self.start
         self.generate()
 
-    def show(self, path=False):
+    def show(self, path=False, player=True):
         """
         Show the maze
         """
-        plt.imshow(self.maze, cmap="viridis", interpolation="nearest")
+        # 2D Grid Plot
+        # Black: wall, white: empty space, blue: start, red: goal, green: swich, yellow: path
+        plt.figure()
+        Grid = np.zeros((self.height, self.width, 3))
+        Grid[self.maze == -1] = [0, 0, 0]   # wall is black
+        Grid[self.maze == 0] = [1, 1, 1]     # empty space is white
+        Grid[self.maze == 1] = [0, 0, 1]     # start is blue
+        Grid[self.maze == 2] = [1, 0, 0]     # goal is red
+        Grid[self.maze == 3] = [0, 1, 0]     # swich is green
+
         if path:
-            maze_with_path = np.copy(self.maze)
             for i, j in self.path:
-                maze_with_path[i, j] = 4
-            plt.imshow(maze_with_path, cmap="viridis", interpolation="nearest")
+                Grid[i, j] = [1, 1, 0]  # path is yellow
+        if player:
+            plt.scatter(self.player[1], self.player[0], color="orange", s=100)
+        plt.imshow(Grid)
         plt.show()
+
+class Gameplayer:
+    """A window to play the game"""
+    def __init__(self, maze):
+        self.maze = maze
+        self.width = maze.width
+        self.height = maze.height
+        self.size = 40
+        self.screen = pygame.display.set_mode((self.width * self.size, self.height * self.size))
+        pygame.display.set_caption("Maze Game")
+        self.clock = pygame.time.Clock()
+        self.running = True
+
+    def run(self,terminate = False):
+        while self.running:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    self.running = False
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_UP:
+                        reward = self.maze.move("up")
+                    elif event.key == pygame.K_DOWN:
+                        reward = self.maze.move("down")
+                    elif event.key == pygame.K_LEFT:
+                        reward = self.maze.move("left")
+                    elif event.key == pygame.K_RIGHT:
+                        reward = self.maze.move("right")
+                    if reward == 2:
+                        print("You win!")
+                        self.maze.regenerate()
+                    if reward == -1:
+                        if terminate:
+                            print("You lose!")
+                            self.maze.regenerate()
+                    if event.key == pygame.K_r:
+                        self.maze.regenerate()
+                    if event.key == pygame.K_q:
+                        self.running = False
+            self.screen.fill((255, 255, 255))
+            for i in range(self.height):
+                for j in range(self.width):
+                    if self.maze.maze[i, j] == -1:
+                        pygame.draw.rect(self.screen, (0, 0, 0), (j * self.size, i * self.size, self.size, self.size))
+                    if self.maze.maze[i, j] == 1:
+                        pygame.draw.rect(self.screen, (0, 0, 255), (j * self.size, i * self.size, self.size, self.size))
+                    if self.maze.maze[i, j] == 2:
+                        pygame.draw.rect(self.screen, (255, 0, 0), (j * self.size, i * self.size, self.size, self.size))
+                    if self.maze.maze[i, j] == 3:
+                        pygame.draw.rect(self.screen, (0, 255, 0), (j * self.size, i * self.size, self.size, self.size))
+            pygame.draw.rect(self.screen, (255, 165, 0), (self.maze.player[1] * self.size, self.maze.player[0] * self.size, self.size, self.size))
+            pygame.display.flip()
+            self.clock.tick(10)
+        pygame.quit()
 
         
 if __name__ == "__main__":
     maze = Maze(20, 20,"swich")
-    # plot the maze
-    plt.imshow(maze.maze, cmap="viridis", interpolation="nearest")
-    # plt path with red
-    plt.figure()
-    maze_with_path = np.copy(maze.maze)
-    for i, j in maze.path:
-        maze_with_path[i, j] = 4
-    plt.imshow(maze_with_path, cmap="viridis", interpolation="nearest")
-    plt.show()
+    game = Gameplayer(maze)
+    game.run()
