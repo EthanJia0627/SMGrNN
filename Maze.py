@@ -137,7 +137,7 @@ class Maze:
                 self.player = new_position
                 self.maze[self.goal] = 2
                 return -0.1
-            if new_position == self.goal:
+            if new_position == self.goal and self.maze[self.goal] == 2:
                 self.player = new_position
                 return 2
             else:
@@ -232,9 +232,54 @@ class Gameplayer:
             pygame.display.flip()
             self.clock.tick(10)
         pygame.quit()
+    
+    def step(self,action,display = False):
+        reward = self.maze.move(action)
+        if reward == 2:
+            self.maze.regenerate()
+        if display:
+            self.screen.fill((255, 255, 255))
+            for i in range(self.height):
+                for j in range(self.width):
+                    if self.maze.maze[i, j] == -1:
+                        pygame.draw.rect(self.screen, (0, 0, 0), (j * self.size, i * self.size, self.size, self.size))
+                    if self.maze.maze[i, j] == 1:
+                        pygame.draw.rect(self.screen, (0, 0, 255), (j * self.size, i * self.size, self.size, self.size))
+                    if self.maze.maze[i, j] == 2:
+                        pygame.draw.rect(self.screen, (255, 0, 0), (j * self.size, i * self.size, self.size, self.size))
+                    if self.maze.maze[i, j] == 3:
+                        pygame.draw.rect(self.screen, (0, 255, 0), (j * self.size, i * self.size, self.size, self.size))
+            pygame.draw.rect(self.screen, (255, 165, 0), (self.maze.player[1] * self.size, self.maze.player[0] * self.size, self.size, self.size))
+            pygame.display.flip()
+            self.clock.tick(10)
+        return reward
 
-        
+    def get_key(self):
+        while True:
+            for event in pygame.event.get():
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_UP:
+                        return "up"
+                    elif event.key == pygame.K_DOWN:
+                        return "down"
+                    elif event.key == pygame.K_LEFT:
+                        return "left"
+                    elif event.key == pygame.K_RIGHT:
+                        return "right"
+                    if event.key == pygame.K_q:
+                        return "quit"
+
 if __name__ == "__main__":
     maze = Maze(20, 20,"swich")
     game = Gameplayer(maze)
-    game.run()
+    
+    # Play with Step Mode
+    while True:
+        Key = game.get_key()
+        if Key == "quit":
+            break
+        else:
+            game.step(Key,display = True)
+
+    # Play with Run Mode
+    game.run(terminate = False)
