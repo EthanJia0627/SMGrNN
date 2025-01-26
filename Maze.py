@@ -63,6 +63,7 @@ class Maze:
             if path:
                 valid = True
         self.path = path
+
     def find_path(self, start, goal):
         """
         Find a path between start and goal with A* ,return None if no path is available
@@ -142,7 +143,8 @@ class Maze:
                 return 2
             else:
                 self.player = new_position
-                return -0.1            
+                return -0.1
+                        
     def regenerate(self):
         """
         Regenerate the maze
