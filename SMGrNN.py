@@ -67,6 +67,7 @@ class SMGrNN(MessagePassing):
         x_i is the input node features of the current node: E x F
         edge_index is the edge index: 2 x E
         """
+        ## TODO Implement edge weights during message passing
         return x_j
         
 
@@ -77,6 +78,7 @@ class DirectedGraph:
             self.nodes = nodes
             self.edge_dict = edge_dict
             self.num_input_nodes = num_input_nodes
+            self.num_hidden_nodes = nodes.size(0) - num_input_nodes - num_output_nodes
             self.num_output_nodes = num_output_nodes
             self.node_types = torch.zeros(self.nodes.size(0),device=self.nodes.device)
             # Node types: 0 - input, 1 - output, 2 - hidden
@@ -87,6 +89,11 @@ class DirectedGraph:
     def add_node(self, nodes, node_types):
         self.nodes = torch.cat([self.nodes, nodes], dim=0)
         self.node_types = torch.cat([self.node_types, node_types], dim=0)
+        self.num_input_nodes += torch.sum(node_types == 0).item()
+        self.num_output_nodes += torch.sum(node_types == 1).item()
+        self.num_hidden_nodes += torch.sum(node_types == 2).item()
+        
+
 
     def add_edge(self, i, j):
         if i not in self.edge_dict:
@@ -140,22 +147,25 @@ class HebbianOptimizer:
     ...
 
 if __name__ == "__main__":
-    num_input_node = 5
-    num_hidden_node = 5
-    num_output_node = 5
-    num_features = 10
+    num_input_node = 2
+    num_hidden_node = 3
+    num_output_node = 2
+    num_features = 2
     density = 0.5
     model = SMGrNN(num_input_node, num_hidden_node, num_output_node,num_features,density)
     model.generate_initial_graph()
     print("Nodes:",model.g.nodes)
     print("Edge dict:",model.g.edge_dict)
-    print("Input nodes:",model.g.input_nodes())
-    print("Output nodes:",model.g.output_nodes())
-    print("Hidden nodes:",model.g.hidden_nodes())
-    # Test Propagation
-    inputs = torch.rand(num_input_node,num_features,device=device)
-    outputs, nodes = model.forward(inputs)
+    print("Input nodes:\n",model.g.input_nodes()[1])
+    print("Output nodes:\n",model.g.output_nodes()[1])
+    print("Hidden nodes:\n",model.g.hidden_nodes()[1])
     model.g.draw()
     plt.show()
-    print("Outputs:",outputs)
-    print("Nodes:",nodes)
+    # Test Propagation
+    inputs = torch.randint(5,[num_input_node,num_features],device=device).float()
+    outputs, nodes = model.forward(inputs)
+    print("Input nodes:\n",inputs)
+    print("Outputs:\n",outputs)
+    print("Nodes:\n",nodes)
+    model.g.draw()
+    plt.show()
