@@ -39,6 +39,12 @@ class SMGrNN(MessagePassing):
                     edge_dict[i].append(j)
         return edge_dict
     
+    def generate_edge_weight(self,edge_dict):
+        edge_weight = edge_dict.copy()
+        for i in edge_weight:
+            for j in edge_weight[i]:
+                edge_weight[i][j] = torch.rand(1)
+        return edge_weight
 
     def forward(self, inputs=None):
         data = self.g.to_data()
@@ -112,6 +118,7 @@ class DirectedGraph:
         return Data(
             x=self.nodes * torch.ones(self.nodes.size(), device=self.nodes.device),
             edge_index=edges,
+            edge_weight=self.edge_weight,
         )
 
     def input_nodes(self):
@@ -154,6 +161,7 @@ if __name__ == "__main__":
     density = 0.5
     model = SMGrNN(num_input_node, num_hidden_node, num_output_node,num_features,density)
     model.generate_initial_graph()
+    data = model.g.to_data()
     print("Nodes:",model.g.nodes)
     print("Edge dict:",model.g.edge_dict)
     print("Input nodes:\n",model.g.input_nodes()[1])
