@@ -21,9 +21,12 @@ class SMGrNN(MessagePassing):
 
     def generate_initial_graph(self):
         # generate initial graph
+        edge_dict = self.generate_edge_dict()
+        edge_weight = self.generate_edge_weight(edge_dict)
         self.g = DirectedGraph(
             nodes=torch.zeros([self.num_nodes, self.num_features],device=device),
-            edge_dict=self.generate_edge_dict(),
+            edge_dict=edge_dict,
+            edge_weight=edge_weight,
             num_input_nodes=self.num_input_node,
             num_output_nodes=self.num_output_node,
         )
@@ -40,9 +43,10 @@ class SMGrNN(MessagePassing):
         return edge_dict
     
     def generate_edge_weight(self,edge_dict):
-        edge_weight = edge_dict.copy()
-        for i in edge_weight:
-            for j in edge_weight[i]:
+        edge_weight = {}
+        for i in edge_dict:
+            edge_weight[i] = torch.zeros(len(edge_dict[i]),dtype=torch.float32,device=device)
+            for j in range(len(edge_dict[i])):
                 edge_weight[i][j] = torch.rand(1)
         return edge_weight
 
@@ -80,9 +84,10 @@ class SMGrNN(MessagePassing):
 
 
 class DirectedGraph:
-    def __init__(self, nodes, edge_dict, num_input_nodes, num_output_nodes):
+    def __init__(self, nodes, edge_dict, edge_weight, num_input_nodes, num_output_nodes):
             self.nodes = nodes
             self.edge_dict = edge_dict
+            self.edge_weight = edge_weight
             self.num_input_nodes = num_input_nodes
             self.num_hidden_nodes = nodes.size(0) - num_input_nodes - num_output_nodes
             self.num_output_nodes = num_output_nodes
@@ -106,19 +111,24 @@ class DirectedGraph:
             self.edge_dict[i] = []
         if j not in self.edge_dict[i]:
             self.edge_dict[i].append(j)
-            
+            self.edge_weight[i].append(torch.zeros(1,dtype=torch.float32,device=self.nodes.device))
     def to_data(self):
         edges = []
+        weights = []
         for node in self.edge_dict:
             destinations = self.edge_dict[node]
             for d in destinations:
                 edges.append([node, d])
+                weights.append(self.edge_weight[node][destinations.index(d)])
+
 
         edges = torch.tensor(edges).long().t().contiguous().to(self.nodes.device)
+        weights = torch.tensor(weights).float().to(self.nodes.device)
+
         return Data(
             x=self.nodes * torch.ones(self.nodes.size(), device=self.nodes.device),
             edge_index=edges,
-            edge_weight=self.edge_weight,
+            edge_weight=weights,
         )
 
     def input_nodes(self):
