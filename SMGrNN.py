@@ -10,7 +10,7 @@ from torch_geometric.utils import degree,k_hop_subgraph
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 class SMGrNN(MessagePassing):
-    def __init__(self, num_input_node, num_hidden_node, num_output_node,num_features,density=0.1):
+    def __init__(self, num_input_node, num_hidden_node, num_output_node,num_features,density=0.1,activation=torch.nn.functional.relu,edge_dict=None):
         super().__init__(aggr="add")
         self.num_input_node = num_input_node
         self.num_hidden_node = num_hidden_node
@@ -18,10 +18,13 @@ class SMGrNN(MessagePassing):
         self.num_features = num_features
         self.density = density
         self.num_nodes = self.num_input_node + self.num_hidden_node + self.num_output_node
+        self.activation = activation
+        self.generate_initial_graph(edge_dict)
 
-    def generate_initial_graph(self):
+    def generate_initial_graph(self,edge_dict=None):
         # generate initial graph
-        edge_dict = self.generate_edge_dict()
+        if edge_dict is None:
+            edge_dict = self.generate_edge_dict()
         edge_weight = self.generate_edge_weight(edge_dict)
         self.g = DirectedGraph(
             nodes=torch.zeros([self.num_nodes, self.num_features],device=device),
@@ -57,17 +60,12 @@ class SMGrNN(MessagePassing):
                 data.x[: self.g.num_input_nodes] = (
                     data.x[: self.g.num_input_nodes] * 0.0 + inputs
                 )
-        nodes = self.compute_propagation(data.x, data.edge_index)
+        nodes = self.compute_propagation(data.x, data.edge_index, data.edge_weight)
         return nodes[torch.where(self.g.node_types == 1)], nodes
 
-    def compute_propagation(self, x, edge_index):
-        indegree = degree(edge_index[1], x.size(0), dtype=x.dtype)
+    def compute_propagation(self, x, edge_index, edge_weight):
+        out = self.propagate(edge_index, x=x, edge_weight=edge_weight)
         for node in torch.where(self.g.node_types != 0):
-            # get in degree of the node
-            node_indegree = indegree[node]
-            # get subgraph of the node
-            _,edges,_,_ = k_hop_subgraph(node,1,edge_index)
-            out = self.propagate(edge_index=edges, x=x)
             x[node] = out[node]
         return x
 
@@ -76,9 +74,15 @@ class SMGrNN(MessagePassing):
         x_j is the input node features of the neighbors: E x F
         x_i is the input node features of the current node: E x F
         edge_index is the edge index: 2 x E
+        edge_weight is the edge weight: E x 1
         """
-        ## TODO Implement edge weights during message passing
-        return x_j
+        ## TODO Implement edge weights during message passing 
+        return x_j * edge_weight.view(-1,1)
+
+    def update(self, aggr_out):
+        return self.activation(aggr_out)
+
+
         
 
 
