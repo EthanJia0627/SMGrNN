@@ -4,11 +4,8 @@ from matplotlib import pyplot as plt
 from .Graph.DirectedGraph import DirectedGraph
 from torch_geometric.nn import MessagePassing
 
-
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
 class SMGrNN(MessagePassing):
-    def __init__(self, num_input_node, num_hidden_node, num_output_node,num_features,density=0.1,activation=torch.nn.functional.tanh,edge_dict=None):
+    def __init__(self, num_input_node, num_hidden_node, num_output_node,num_features,density=0.1,activation=torch.nn.functional.tanh,edge_dict=None,device=torch.device('cuda' if torch.cuda.is_available() else 'cpu')):
         super().__init__(aggr="add")
         """
         Initialize the SMGrNN model with graph generation
@@ -20,6 +17,9 @@ class SMGrNN(MessagePassing):
         activation: Activation function (torch.nn.functional)
         edge_dict: Dictionary of edges (Dict)
         """
+        # ========================= Device  =========================
+        self.device = device
+        self.to(device)
         # ========================= Node  =========================
         self.num_input_node = num_input_node
         self.num_hidden_node = num_hidden_node
@@ -32,6 +32,7 @@ class SMGrNN(MessagePassing):
         self.activation = activation
         self.generate_initial_graph(edge_dict)
 
+
     def generate_initial_graph(self,edge_dict=None):
         """
         Generate the initial graph with random edges or given edge_dict
@@ -42,7 +43,7 @@ class SMGrNN(MessagePassing):
             edge_dict = self.generate_edge_dict()
         edge_weight = self.generate_edge_weight(edge_dict)
         self.g = DirectedGraph(
-            nodes=torch.zeros([self.num_nodes, self.num_features],device=device),
+            nodes=torch.zeros([self.num_nodes, self.num_features],device=self.device),
             edge_dict=edge_dict,
             edge_weight=edge_weight,
             num_input_nodes=self.num_input_node,
@@ -69,7 +70,7 @@ class SMGrNN(MessagePassing):
         """
         edge_weight = {}
         for i in edge_dict:
-            edge_weight[i] = torch.zeros(len(edge_dict[i]),dtype=torch.float32,device=device)
+            edge_weight[i] = torch.zeros(len(edge_dict[i]),dtype=torch.float32,device=self.device)
             for j in range(len(edge_dict[i])):
                 edge_weight[i][j] = torch.rand(1)
         return edge_weight
@@ -87,6 +88,7 @@ class SMGrNN(MessagePassing):
                     data.x[: self.g.num_input_nodes] * 0.0 + inputs
                 )
         nodes = self.compute_propagation(data.x, data.edge_index, data.edge_weight)
+        self.g.nodes = nodes
         return nodes[torch.where(self.g.node_types == 1)], nodes
 
     def compute_propagation(self, x, edge_index, edge_weight):
@@ -108,7 +110,8 @@ class SMGrNN(MessagePassing):
         edge_index is the edge index: 2 x E
         edge_weight is the edge weight: E x 1
         """
-        ## TODO Implement edge weights during message passing 
+        # TODO Compute new weights according to in and out degrees
+        # 
         return x_j * edge_weight.view(-1,1)
 
     def update(self, aggr_out):
@@ -121,7 +124,9 @@ class SMGrNN(MessagePassing):
         
 
 
-if __name__ == "__main__":
+"""
+Example Usage:
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     num_input_node = 2
     num_hidden_node = 3
     num_output_node = 2
@@ -145,3 +150,5 @@ if __name__ == "__main__":
     print("Nodes:\n",nodes)
     model.g.draw()
     plt.show()
+"""
+    

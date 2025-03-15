@@ -107,17 +107,61 @@ class DirectedGraph:
         """
         return torch.where(self.node_types == 2)[0], self.nodes[self.node_types == 2]
     
-    def draw(self):
+    def draw(self,type = "NodeType",edge_weight = False):
+        """
+        Draw the graph
+        type: Type of the graph (String) - "NodeType"  or "NodeActivity"
+        edge_weight: Whether to draw the edge weight (Boolean)
+        """
         data = self.to_data()
         G = torch_geometric.utils.to_networkx(data, to_undirected=False)
-        # Input nodes in Green, Output nodes in Red, Hidden nodes in Blue
-        colors = ['g' if x == 0 else 'r' if x == 1 else 'b' for x in self.node_types]
-        plt.figure()
-        # Draw nodes
-        pos = nx.drawing.nx_agraph.graphviz_layout(G, prog="dot", args="-Grankdir=LR")
-        nx.draw_networkx_nodes(G, pos=pos, node_color=colors, node_size=500)
-        # Draw edges
-        nx.draw_networkx_edges(G, pos=pos)
-        # Draw labels
-        labels = {i: i for i in range(self.nodes.size(0))}
-        nx.draw_networkx_labels(G, pos=pos, labels=labels)
+        if edge_weight:
+            # Edge weight in cyan if positive and magenta if negative, width is proportional to the absolute value of the weight
+            edge_colors = ['r' if x > 0 else 'c' for x in data.edge_weight]
+            edge_width = [abs(x) for x in data.edge_weight]
+        if type == "NodeType":
+            # Input nodes in Green, Output nodes in Red, Hidden nodes in Blue
+            colors = ['g' if x == 0 else 'r' if x == 1 else 'b' for x in self.node_types]
+            plt.figure()
+            if edge_weight:
+                # Draw edges
+                nx.draw(G, with_labels=True, node_color=colors, edge_color=edge_colors, width=edge_width)
+            else:
+                # Draw nodes
+                nx.draw(G, with_labels=True, node_color=colors)
+        elif type == "NodeActivity":
+            # Node activity in magenta(RGBA) if positive and cyan(RGBA) if negative, density is proportional to the absolute value of the activity
+            # Sum features for each node to get activity values
+            node_activities = torch.sum(self.nodes, dim=1) if len(self.nodes.shape) > 1 else self.nodes
+            
+            # Get maximum absolute activity for normalization
+            max_abs_activity = torch.abs(node_activities).max().item()
+            if max_abs_activity > 0:  # Avoid division by zero
+                normalized_abs_activity = torch.abs(node_activities) / max_abs_activity
+            else:
+                normalized_abs_activity = torch.zeros_like(node_activities)
+
+            # Create colors list with appropriate RGBA values
+            colors = []
+            for i in range(len(node_activities)):
+                activity = node_activities[i].item()
+                intensity = normalized_abs_activity[i].item()
+                
+                if activity > 0:  # Positive activity - magenta
+                    # Interpolate between white (1,1,1) and magenta (1,0,1)
+                    colors.append((np.array([1, 1, 1, 0]) - intensity * np.array([0, 1, 1, -1])).tolist())
+                elif activity < 0:  # Negative activity - cyan
+                    # Interpolate between white (1,1,1) and cyan (0,1,1)
+                    colors.append((np.array([1, 1, 1, 1]) - intensity * np.array([1, 0.75, 0.2, 0])).tolist())
+                else:  # Zero activity - white
+                    colors.append((1, 1, 1, 1))
+            plt.figure()
+            if edge_weight:
+                # Draw edges
+                nx.draw(G, with_labels=True, node_color=colors, edge_color=edge_colors, 
+                       width=edge_width, edgecolors='black', linewidths=0.2)
+            else:
+                # Draw nodes
+                nx.draw(G, with_labels=True, node_color=colors, 
+                       edgecolors='black', linewidths=0.2)
+                
