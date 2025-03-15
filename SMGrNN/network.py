@@ -72,7 +72,7 @@ class SMGrNN(MessagePassing):
         for i in edge_dict:
             edge_weight[i] = torch.zeros(len(edge_dict[i]),dtype=torch.float32,device=self.device)
             for j in range(len(edge_dict[i])):
-                edge_weight[i][j] = torch.rand(1)
+                edge_weight[i][j] = 2*torch.rand(1)-1
         return edge_weight
 
     def forward(self, inputs=None):
