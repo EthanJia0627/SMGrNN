@@ -117,7 +117,7 @@ class DirectedGraph:
         G = torch_geometric.utils.to_networkx(data, to_undirected=False)
         if edge_weight:
             # Edge weight in cyan if positive and magenta if negative, width is proportional to the absolute value of the weight
-            edge_colors = ['r' if x > 0 else 'c' for x in data.edge_weight]
+            edge_colors = [(1,0,0,1) if x > 0 else (0.1,0.25,0.8,1) for x in data.edge_weight]
             edge_width = [abs(x) for x in data.edge_weight]
         if type == "NodeType":
             # Input nodes in Green, Output nodes in Red, Hidden nodes in Blue
@@ -149,10 +149,10 @@ class DirectedGraph:
                 
                 if activity > 0:  # Positive activity - magenta
                     # Interpolate between white (1,1,1) and magenta (1,0,1)
-                    colors.append((np.array([1, 1, 1, 0]) - intensity * np.array([0, 1, 1, -1])).tolist())
+                    colors.append((np.array([1, 1, 1, 0]) - np.pow(intensity,1/4) * np.array([0, 1, 1, -1])).tolist())
                 elif activity < 0:  # Negative activity - cyan
                     # Interpolate between white (1,1,1) and cyan (0,1,1)
-                    colors.append((np.array([1, 1, 1, 1]) - intensity * np.array([1, 0.75, 0.2, 0])).tolist())
+                    colors.append((np.array([1, 1, 1, 1]) - np.pow(intensity,1/4) * np.array([1, 0.75, 0.2, 0])).tolist())
                 else:  # Zero activity - white
                     colors.append((1, 1, 1, 1))
             plt.figure()
