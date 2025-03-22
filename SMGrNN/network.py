@@ -1,5 +1,6 @@
 import torch
 import numpy as np
+from torch.nn import Parameter
 from matplotlib import pyplot as plt
 from .Graph.DirectedGraph import DirectedGraph
 from torch_geometric.nn import MessagePassing
@@ -27,12 +28,20 @@ class SMGrNN(MessagePassing):
         self.num_nodes = self.num_input_node + self.num_hidden_node + self.num_output_node
         self.num_features = num_features
         # ========================= Graph  =========================
-        self.g = None
+        self.g:DirectedGraph = None
         self.density = density
         self.activation = activation
         self.generate_initial_graph(edge_dict)
+        self.edge_weight = Parameter(self.g.to_data().edge_weight)
 
-
+    def update_network(self,func):
+        def wrapper(*args, **kwargs):
+            # TODO: Update the network from the graph after the function call
+            result = func(*args, **kwargs)
+            self.edge_weight = Parameter(self.g.to_data().edge_weight)
+            return result
+        return wrapper
+    
     def generate_initial_graph(self,edge_dict=None):
         """
         Generate the initial graph with random edges or given edge_dict
@@ -62,7 +71,7 @@ class SMGrNN(MessagePassing):
                 if np.random.rand() < self.density and j>=self.num_input_node:
                     edge_dict[i].append(j)
         return edge_dict
-    
+
     def generate_edge_weight(self,edge_dict):
         """
         Generate the edge weight for the graph
@@ -87,8 +96,8 @@ class SMGrNN(MessagePassing):
                 data.x[: self.g.num_input_nodes] = (
                     data.x[: self.g.num_input_nodes] * 0.0 + inputs
                 )
-        nodes = self.compute_propagation(data.x, data.edge_index, data.edge_weight)
-        self.g.nodes = nodes
+        nodes = self.compute_propagation(data.x, data.edge_index, self.edge_weight)
+        self.g.nodes = nodes.detach() # Avoid storing gradients in the graph
         return nodes[torch.where(self.g.node_types == 1)], nodes
 
     def compute_propagation(self, x, edge_index, edge_weight):
@@ -119,9 +128,8 @@ class SMGrNN(MessagePassing):
         aggr_out is the aggregated message: N x F
         """
         return self.activation(aggr_out)
+    
 
-
-        
 
 
 """
