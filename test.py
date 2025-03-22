@@ -43,9 +43,9 @@ def test_gradient_train():
     criterion = torch.nn.MSELoss()
     for i in range(1000):
         optimizer.zero_grad()
-        inputs = torch.randint(5,[num_input_node,num_features],device=device).float()-2
+        inputs = torch.randint(2,[num_input_node,num_features],device=device).float()-1
         outputs, nodes = model.forward(inputs)
-        target = torch.randint(5,[num_output_node,num_features],device=device).float()-2
+        target = -inputs.clone()
         loss = criterion(outputs,target)
         loss.backward()
         optimizer.step()
