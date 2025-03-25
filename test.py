@@ -50,12 +50,14 @@ def test_gradient_train():
         loss.backward()
         optimizer.step()
         if i%100 == 0:
+
             print("Loss:",loss.item())
     print("Input nodes:\n",inputs)
     print("Outputs:\n",outputs)
     print("Nodes:\n",nodes)
-    print("Weights:\n",model.g.edge_weight)
-    model.g.draw(type="NodeActivity",edge_weight=True)
+    print("Initial Weights:\n",model.g.edge_weight)
+    model.visualize(type="NodeActivity",edge_weight=True)
+    print("Sync Weights:\n",model.g.edge_weight)
     plt.show()
 
 if __name__ == "__main__":

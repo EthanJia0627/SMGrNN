@@ -79,6 +79,29 @@ class DirectedGraph:
             edge_index=edges,
             edge_weight=weights,
         )
+    
+    def sync_edge_weight(self, edge_weight):
+        """
+        Synchronize the edge weight with the provided edge weight
+        edge_weight: Edge weight (Tensor) torch.Size([E])
+        """
+        edge_weight_flat = edge_weight.detach().view(-1)
+        # Count total number of edges
+        total_edges = 0
+        for node in self.edge_dict:
+            total_edges += len(self.edge_dict[node])
+
+        if total_edges != len(edge_weight_flat):
+            raise ValueError(f"Edge weight length mismatch: {total_edges} edges, but got {len(edge_weight_flat)} weights")
+
+        idx = 0
+        for node in self.edge_dict:
+            destinations = self.edge_dict[node]
+            for d in destinations:
+                # Update the weight for this edge
+                self.edge_weight[node][destinations.index(d)] = edge_weight_flat[idx].view(1).to(self.nodes.device)
+                idx += 1
+
 
     def input_nodes(self):
         """

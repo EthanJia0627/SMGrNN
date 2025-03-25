@@ -5,6 +5,10 @@ from matplotlib import pyplot as plt
 from .Graph.DirectedGraph import DirectedGraph
 from torch_geometric.nn import MessagePassing
 
+## TODO: 
+## 1. Sync the edge_weight in graph before adding the node or edge
+## 2. Sync the edge_weight in graph before drawing the graph
+
 class SMGrNN(MessagePassing):
     def __init__(self, num_input_node, num_hidden_node, num_output_node,num_features,density=0.1,activation=torch.nn.functional.tanh,edge_dict=None,device=torch.device('cuda' if torch.cuda.is_available() else 'cpu')):
         super().__init__(aggr="add")
@@ -31,17 +35,29 @@ class SMGrNN(MessagePassing):
         self.g:DirectedGraph = None
         self.density = density
         self.activation = activation
+        self.edge_weight = None
         self.generate_initial_graph(edge_dict)
-        self.edge_weight = Parameter(self.g.to_data().edge_weight)
 
-    def update_network(self,func):
+
+    def update_edge_weight(func):
         def wrapper(*args, **kwargs):
             # TODO: Update the network from the graph after the function call
+            self = args[0]
             result = func(*args, **kwargs)
             self.edge_weight = Parameter(self.g.to_data().edge_weight)
             return result
         return wrapper
     
+    def sync_graph(func):
+        def wrapper(*args, **kwargs):
+            # TODO: Update the graph from the network before the function call
+            self = args[0]
+            self.g.sync_edge_weight(self.edge_weight)
+            result = func(*args, **kwargs)
+            return result
+        return wrapper
+    
+    @update_edge_weight
     def generate_initial_graph(self,edge_dict=None):
         """
         Generate the initial graph with random edges or given edge_dict
@@ -119,8 +135,6 @@ class SMGrNN(MessagePassing):
         edge_index is the edge index: 2 x E
         edge_weight is the edge weight: E x 1
         """
-        # TODO Compute new weights according to in and out degrees
-        # 
         return x_j * edge_weight.view(-1,1)
 
     def update(self, aggr_out):
@@ -129,7 +143,13 @@ class SMGrNN(MessagePassing):
         """
         return self.activation(aggr_out)
     
-
+    @sync_graph
+    def visualize(self,type = "NodeType",edge_weight = False):
+        """
+        Visualize the graph
+        """
+        self.g.draw(type=type,edge_weight=edge_weight)
+        plt.show()
 
 
 """
