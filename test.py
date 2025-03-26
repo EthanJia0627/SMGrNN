@@ -5,6 +5,9 @@ from SMGrNN.network import SMGrNN
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 def test_propagation():
+    """
+    Test the forward propagation of the SMGrNN model
+    """
     num_input_node = 2
     num_hidden_node = 3
     num_output_node = 2
@@ -32,6 +35,9 @@ def test_propagation():
     plt.show()
 
 def test_gradient_train():
+    """
+    Test the gradient training
+    """
     num_input_node = 2
     num_hidden_node = 3
     num_output_node = 2
@@ -60,6 +66,21 @@ def test_gradient_train():
     print("Sync Weights:\n",model.g.edge_weight)
     plt.show()
 
+def test_shared_graph():
+    """
+    Test if the graph is shared between the model and the optimizer
+    """
+    num_input_node = 2
+    num_hidden_node = 1
+    num_output_node = 2
+    num_features = 1
+    density = 0.5
+    model = SMGrNN(num_input_node, num_hidden_node, num_output_node,num_features,density,device=device)
+    print("Nodes:",model.g.nodes)
+    model.g.add_node(torch.tensor([[0],[1],[2]],device=device),torch.tensor([1,1,1],device=device))
+    print("Nodes from Optimizer:",model.hebbian.g.nodes)
+
 if __name__ == "__main__":
     # test_propagation()
-    test_gradient_train()
+    # test_gradient_train()
+    test_shared_graph()

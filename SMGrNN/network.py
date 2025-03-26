@@ -2,8 +2,9 @@ import torch
 import numpy as np
 from torch.nn import Parameter
 from matplotlib import pyplot as plt
-from .Graph.DirectedGraph import DirectedGraph
 from torch_geometric.nn import MessagePassing
+from .Graph.DirectedGraph import DirectedGraph
+from HebbianOptimizer import HebbianOptimizer
 
 ## TODO: 
 ## 1. Sync the edge_weight in graph before adding the node or edge
@@ -37,11 +38,15 @@ class SMGrNN(MessagePassing):
         self.activation = activation
         self.edge_weight = None
         self.generate_initial_graph(edge_dict)
+        # ========================= Hebbian  =========================
+        self.hebbian = HebbianOptimizer(self.g)
 
 
     def update_edge_weight(func):
+        """
+        Decorator to update the edge weight in the network from the graph (after the function call)
+        """
         def wrapper(*args, **kwargs):
-            # TODO: Update the network from the graph after the function call
             self = args[0]
             result = func(*args, **kwargs)
             self.edge_weight = Parameter(self.g.to_data().edge_weight)
@@ -49,8 +54,10 @@ class SMGrNN(MessagePassing):
         return wrapper
     
     def sync_graph(func):
+        """
+        Decorator to sync the edge weight in the graph from the network (before the function call)
+        """
         def wrapper(*args, **kwargs):
-            # TODO: Update the graph from the network before the function call
             self = args[0]
             self.g.sync_edge_weight(self.edge_weight)
             result = func(*args, **kwargs)
