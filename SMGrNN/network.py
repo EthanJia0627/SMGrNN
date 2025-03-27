@@ -4,11 +4,11 @@ from torch.nn import Parameter
 from matplotlib import pyplot as plt
 from torch_geometric.nn import MessagePassing
 from .Graph.DirectedGraph import DirectedGraph
-from HebbianOptimizer import HebbianOptimizer
+from .Optimizer.HebbianOptimizer import HebbianOptimizer
+from .Optimizer.NeuromorphicOptimizer import NeuromorphicOptimizer
 
 ## TODO: 
-## 1. Sync the edge_weight in graph before adding the node or edge
-## 2. Sync the edge_weight in graph before drawing the graph
+# 1. Manage shared graph across network and optimizer (Remember to sync graph before optimization and update edge weight after optimization)
 
 class SMGrNN(MessagePassing):
     def __init__(self, num_input_node, num_hidden_node, num_output_node,num_features,density=0.1,activation=torch.nn.functional.tanh,edge_dict=None,device=torch.device('cuda' if torch.cuda.is_available() else 'cpu')):
@@ -23,23 +23,25 @@ class SMGrNN(MessagePassing):
         activation: Activation function (torch.nn.functional)
         edge_dict: Dictionary of edges (Dict)
         """
-        # ========================= Device  =========================
+        # =========================  Device  =========================
         self.device = device
         self.to(device)
-        # ========================= Node  =========================
+        # =========================  Node Info  =========================
         self.num_input_node = num_input_node
         self.num_hidden_node = num_hidden_node
         self.num_output_node = num_output_node
         self.num_nodes = self.num_input_node + self.num_hidden_node + self.num_output_node
         self.num_features = num_features
-        # ========================= Graph  =========================
+        # =========================  Graph  =========================
         self.g:DirectedGraph = None
         self.density = density
         self.activation = activation
         self.edge_weight = None
         self.generate_initial_graph(edge_dict)
-        # ========================= Hebbian  =========================
-        self.hebbian = HebbianOptimizer(self.g)
+        # =========================  Optimizer  =========================
+        self.optimizer = torch.optim.Adam(self.parameters(), lr=0.01)
+        self.hebbian = HebbianOptimizer(self.g, self.edge_weight)
+        self.neuromorphic = NeuromorphicOptimizer(self.g, self.edge_weight)
 
 
     def update_edge_weight(func):
@@ -50,6 +52,7 @@ class SMGrNN(MessagePassing):
             self = args[0]
             result = func(*args, **kwargs)
             self.edge_weight = Parameter(self.g.to_data().edge_weight)
+            self.optimizer = torch.optim.Adam(self.parameters(), lr=0.01)
             return result
         return wrapper
     

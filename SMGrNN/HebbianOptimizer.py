@@ -1,6 +1,0 @@
-
-
-class HebbianOptimizer:
-    def __init__(self,graph):
-        self.g = graph
-    
