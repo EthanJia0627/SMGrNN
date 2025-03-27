@@ -10,6 +10,7 @@ setup(
         "networkx",
         "matplotlib",
         "torch-geometric",
+        "scipy",
     ],
     # entry_points={  # 可选，定义可执行命令行工具
     #     "console_scripts": [

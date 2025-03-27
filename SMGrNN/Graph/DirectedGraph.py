@@ -138,20 +138,39 @@ class DirectedGraph:
         """
         data = self.to_data()
         G = torch_geometric.utils.to_networkx(data, to_undirected=False)
+
+        # =========================================== Fix Layout ===========================================
+        if not hasattr(self, '_pos_cache'):
+            self._pos_cache = {}
+        # Create a hashable key based on current edge structure
+        edge_key = tuple(sorted((int(i), int(j)) for i, j in zip(*data.edge_index.cpu().numpy())))
+        if edge_key in self._pos_cache:
+            pos = self._pos_cache[edge_key]
+        else:
+            pos = nx.kamada_kawai_layout(G)  # or nx.spectral_layout(G)
+            self._pos_cache[edge_key] = pos
+
+        # ======================================================================================================================
+        # ===================================================== Draw Graph =====================================================
+        # ======================================================================================================================
         if edge_weight:
             # Edge weight in cyan if positive and magenta if negative, width is proportional to the absolute value of the weight
             edge_colors = [(1,0,0,1) if x > 0 else (0.1,0.25,0.8,1) for x in data.edge_weight]
             edge_width = [abs(x) for x in data.edge_weight]
+
+        # ======================================== Node Type Graph ========================================
         if type == "NodeType":
             # Input nodes in Green, Output nodes in Red, Hidden nodes in Blue
             colors = ['g' if x == 0 else 'r' if x == 1 else 'b' for x in self.node_types]
             plt.figure()
             if edge_weight:
                 # Draw edges
-                nx.draw(G, with_labels=True, node_color=colors, edge_color=edge_colors, width=edge_width)
+                nx.draw(G, pos=pos, with_labels=True, node_color=colors, edge_color=edge_colors, width=edge_width)
             else:
                 # Draw nodes
-                nx.draw(G, with_labels=True, node_color=colors)
+                nx.draw(G, pos=pos, with_labels=True, node_color=colors)
+
+        # ====================================== Node Activity Graph ======================================
         elif type == "NodeActivity":
             # Node activity in magenta(RGBA) if positive and cyan(RGBA) if negative, density is proportional to the absolute value of the activity
             # Sum features for each node to get activity values
@@ -181,10 +200,10 @@ class DirectedGraph:
             plt.figure()
             if edge_weight:
                 # Draw edges
-                nx.draw(G, with_labels=True, node_color=colors, edge_color=edge_colors, 
+                nx.draw(G, pos=pos, with_labels=True, node_color=colors, edge_color=edge_colors, 
                        width=edge_width, edgecolors='black', linewidths=0.2)
             else:
                 # Draw nodes
-                nx.draw(G, with_labels=True, node_color=colors, 
+                nx.draw(G, pos=pos, with_labels=True, node_color=colors, 
                        edgecolors='black', linewidths=0.2)
                 
