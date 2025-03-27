@@ -10,12 +10,31 @@ class NeuromorphicOptimizer:
         ## =========================  Graph  =========================
         self.g = graph
         self.edge_weight = edge_weight
+        self.edge_weight_previous = edge_weight.clone()
         ## =========================  Parameters  =========================
         ...
         ## =========================  Data  =========================
-        self.node_activity = torch.zeros(self.g.nodes.size(0),device=self.g.nodes.device)
-        self.edge_weight_derivative = torch.zeros(self.edge_weight.size(),device=self.edge_weight.device)
+        self.node_activity_history = []        # history of node activity（Tensor）
+        self.edge_derivative_history = []        # history of edge weight derivative（Tensor）
+        self.timesteps = 0                     # 当前累计的步数
+        self.history_window = 100              # 观测时间窗口大小
 
-    
+    def update_state(self):
+        """
+        Update node activity and store historical info for future growth decision
+        """
+        # 当前节点活动：特征求和
+        self.node_activity = self.g.nodes.sum(dim=1)
 
-        
+        # 记录历史节点活动（detach 避免占用计算图内存）
+        self.node_activity_history.append(self.node_activity.detach().clone())
+        self.timesteps += 1
+
+        # === 计算 edge 权重变化量（非 Hebbian，而是追踪变化）
+        edge_diff = (self.edge_weight - self.edge_weight_previous).detach().clone()
+        self.edge_weight_previous = self.edge_weight.clone()
+
+        self.edge_derivative_history.append(edge_diff)
+        if len(self.edge_derivative_history) > self.history_window:
+            self.node_activity_history.pop(0)
+            self.edge_derivative_history.pop(0)
