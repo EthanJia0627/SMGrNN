@@ -42,6 +42,8 @@ class SMGrNN(MessagePassing):
         self.optimizer = torch.optim.Adam(self.parameters(), lr=0.01)
         self.hebbian = HebbianOptimizer(self.g, self.edge_weight)
         self.neuromorphic = NeuromorphicOptimizer(self.g, self.edge_weight)
+        # =========================  Criterion  =========================
+        self.criterion = torch.nn.MSELoss()
 
 
     def update_edge_weight(func):
@@ -49,7 +51,7 @@ class SMGrNN(MessagePassing):
         Decorator to update the edge weight in the network from the graph (after the function call)
         """
         def wrapper(*args, **kwargs):
-            self = args[0]
+            self:SMGrNN = args[0]
             result = func(*args, **kwargs)
             self.edge_weight = Parameter(self.g.to_data().edge_weight)
             self.optimizer = torch.optim.Adam(self.parameters(), lr=0.01)
@@ -61,12 +63,25 @@ class SMGrNN(MessagePassing):
         Decorator to sync the edge weight in the graph from the network (before the function call)
         """
         def wrapper(*args, **kwargs):
-            self = args[0]
+            self:SMGrNN = args[0]
             self.g.sync_edge_weight(self.edge_weight)
             result = func(*args, **kwargs)
             return result
         return wrapper
     
+    def update_optimizer(func):
+        """
+        Update the optimizer with new state after the function call
+        """
+        def wrapper(*args, **kwargs):
+            self:SMGrNN = args[0]
+            result = func(*args, **kwargs)
+            self.hebbian.update_state()
+            self.neuromorphic.update_state()
+            return result
+        return wrapper
+        
+
     @update_edge_weight
     def generate_initial_graph(self,edge_dict=None):
         """
@@ -110,6 +125,7 @@ class SMGrNN(MessagePassing):
                 edge_weight[i][j] = 2*torch.rand(1)-1
         return edge_weight
 
+    @update_optimizer
     def forward(self, inputs=None):
         """"
         Forward pass of the model
@@ -153,6 +169,32 @@ class SMGrNN(MessagePassing):
         """
         return self.activation(aggr_out)
     
+    # TODO: Implement the one-step training function with sync graph (update optimizer is already implemented with forward)
+    @update_optimizer
+    def train_step(self,inputs,targets,optimizer="Gradient"):
+        """
+        Train the network with one step
+        inputs: Input features (Tensor)
+        targets: Target features (Tensor)
+        """
+        if optimizer == "Gradient":
+            optimizer = self.optimizer
+        elif optimizer == "Hebbian":
+            optimizer = self.hebbian
+        outputs, nodes = self.forward(inputs)
+        loss = self.criterion(outputs,targets)
+        loss.backward()
+        optimizer.step()
+        return loss
+    
+    # TODO: Implement grow function with update edge weight
+    @update_edge_weight
+    def grow(self):
+        """
+        Grow the network based on the historical information
+        """
+        self.neuromorphic.grow()
+
     @sync_graph
     def visualize(self,type = "NodeType",edge_weight = False):
         """

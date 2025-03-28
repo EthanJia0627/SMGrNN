@@ -29,4 +29,6 @@ class HebbianOptimizer:
         if len(self.node_activity_history) > self.history_window:
             self.node_activity_history.pop(0)
             self.edge_collaborativity_history.pop(0)
-        
+    
+    def step(self):
+        ...

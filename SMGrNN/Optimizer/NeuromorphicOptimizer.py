@@ -12,7 +12,7 @@ class NeuromorphicOptimizer:
         self.edge_weight = edge_weight
         self.edge_weight_previous = edge_weight.clone()
         ## =========================  Parameters  =========================
-        ...
+        self.activity_threshold = 0.75         
         ## =========================  Data  =========================
         self.node_activity_history = []        # history of node activity（Tensor）
         self.edge_derivative_history = []        # history of edge weight derivative（Tensor）
@@ -38,3 +38,19 @@ class NeuromorphicOptimizer:
         if len(self.edge_derivative_history) > self.history_window:
             self.node_activity_history.pop(0)
             self.edge_derivative_history.pop(0)
+    
+    def grow(self):
+        """
+        Grow the network based on the historical information
+        """
+        # Check if the network is ready to grow
+        if self.timesteps < self.history_window:
+            return
+        # Calculate the average node activity
+        avg_activity = torch.stack(torch.abs(self.node_activity_history)).mean(dim=0)
+        # Add new nodes from active nodes
+        active_nodes = avg_activity > torch.max(avg_activity.mean()+2*avg_activity.std(),self.activity_threshold)
+        ...
+        
+
+        
