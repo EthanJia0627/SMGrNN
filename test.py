@@ -56,7 +56,7 @@ def test_gradient_train():
         loss.backward()
         optimizer.step()
         if i%100 == 0:
-
+            model.visualize(type="NodeActivity",edge_weight=True)
             print("Loss:",loss.item())
     print("Input nodes:\n",inputs)
     print("Outputs:\n",outputs)
@@ -80,7 +80,34 @@ def test_shared_graph():
     model.g.add_node(torch.tensor([[0],[1],[2]],device=device),torch.tensor([1,1,1],device=device))
     print("Nodes from Optimizer:",model.hebbian.g.nodes)
 
+def test_growth():
+    """
+    Fit a XOR Gate with the network
+    """
+    num_input_node = 2
+    num_hidden_node = 3
+    num_output_node = 1
+    num_features = 2
+    density = 0.5
+    model = SMGrNN(num_input_node, num_hidden_node, num_output_node,num_features,density,device=device)
+    # Train the network
+    for epoch in range(1000):
+        inputs = torch.randint(0,2,[num_input_node,num_features],device=device)
+        # Calculate the XOR gate
+        target = inputs[0]^inputs[1]
+        target = target.unsqueeze(0)
+        loss = model.train_step(inputs.float(),target.float())
+        if epoch%100 == 0:
+            model.grow()
+            model.visualize("NodeActivity",edge_weight=True)
+            print("Epoch:",epoch)
+            print("Loss:",loss)
+    
+
+
+    
 if __name__ == "__main__":
     # test_propagation()
     # test_gradient_train()
-    test_shared_graph()
+    # test_shared_graph()
+    test_growth()
